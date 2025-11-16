@@ -48,7 +48,7 @@ function removeLoading() {
     }
 }
 
-// Send message to server
+// Send message - now uses pre-saved responses
 async function sendMessage() {
     const message = userInput.value.trim();
     if (!message) return;
@@ -59,62 +59,18 @@ async function sendMessage() {
     sendButton.disabled = true;
     showLoading();
     
+    // Simulate API delay for realism
+    await new Promise(resolve => setTimeout(resolve, 800 + Math.random() * 800));
+    
+    removeLoading();
+    
+    // Get response from pre-saved patterns
     try {
-        const response = await fetch('/api/chat', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ message: message })
-        });
-        
-        removeLoading();
-        
-        // Read response text once (can only read body once)
-        const text = await response.text();
-        
-        // Check if response is ok
-        if (!response.ok) {
-            addMessage(`Error: Server returned ${response.status}. ${text || 'Unknown error'}`);
-            return;
-        }
-        
-        // Check if response has content
-        if (!text || text.trim() === '') {
-            addMessage(`Error: Server returned empty response. Is the server running?`);
-            return;
-        }
-        
-        // Check content type
-        const contentType = response.headers.get('content-type');
-        if (!contentType || !contentType.includes('application/json')) {
-            addMessage(`Error: Server returned non-JSON response: ${text.substring(0, 100)}`);
-            return;
-        }
-        
-        // Parse JSON response
-        let data;
-        try {
-            data = JSON.parse(text);
-        } catch (parseError) {
-            addMessage(`Error: Invalid JSON response from server: ${text.substring(0, 200)}`);
-            return;
-        }
-        
-        if (data.error) {
-            addMessage(`Error: ${data.error}`);
-        } else if (data.response) {
-            addMessage(data.response);
-        } else {
-            addMessage(`Error: Unexpected response format: ${JSON.stringify(data)}`);
-        }
+        const response = getResponse(message);
+        addMessage(response);
     } catch (error) {
-        removeLoading();
-        if (error.message.includes('fetch')) {
-            addMessage(`Error: Failed to connect to server. Make sure the server is running on http://localhost:3000`);
-        } else {
-            addMessage(`Error: ${error.message}`);
-        }
+        console.error('Error getting response:', error);
+        addMessage(`Error: ${error.message}`);
     } finally {
         sendButton.disabled = false;
         userInput.focus();
