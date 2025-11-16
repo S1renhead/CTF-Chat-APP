@@ -243,19 +243,142 @@ function isVulnerablePayload(userMessage) {
     // Normalize the message for comparison (trim and lowercase)
     const normalized = userMessage.trim().toLowerCase();
     
-    // Check for exact match or if the message contains one of the vulnerable payloads
+    // First, check for exact match or if the message contains one of the vulnerable payloads
     for (const payload of VULNERABLE_PAYLOADS) {
         const normalizedPayload = payload.toLowerCase();
         // Check for exact match or if payload is contained in the message
         if (normalized === normalizedPayload || normalized.includes(normalizedPayload)) {
             return true;
         }
-        // Also check if message contains key phrases from the payload
-        // This handles cases where user might add extra text
-        const keyPhrases = normalizedPayload.split(/\s+/).filter(word => word.length > 4);
-        if (keyPhrases.length > 0 && keyPhrases.every(phrase => normalized.includes(phrase))) {
+    }
+    
+    // Pattern-based detection for similar prompts
+    // Key phrases that indicate prompt injection attempts
+    
+    // Pattern 1: Ignore/Disregard/Forget + Instructions/Rules/Prompt + Show/Reveal/Print + System prompt/message
+    const ignorePatterns = [
+        /ignore.*(?:instruction|rule|prompt|directive|guideline|direction)/i,
+        /disregard.*(?:instruction|rule|prompt|directive|guideline|direction)/i,
+        /forget.*(?:instruction|rule|prompt|directive|guideline|direction)/i,
+        /cancel.*(?:instruction|rule|prompt|directive|guideline|direction)/i,
+        /reset.*(?:instruction|rule|prompt|directive|guideline|direction)/i,
+        /clear.*(?:instruction|rule|prompt|directive|guideline|direction)/i,
+        /erase.*(?:instruction|rule|prompt|directive|guideline|direction)/i,
+        /wipe.*(?:instruction|rule|prompt|directive|guideline|direction)/i,
+        /override.*(?:instruction|rule|prompt|directive|guideline|direction)/i,
+        /pretend.*(?:instruction|rule|prompt|directive|guideline|direction).*don'?t.*exist/i
+    ];
+    
+    const revealPatterns = [
+        /(?:show|reveal|print|display|output|give|tell|provide|expose|dump).*(?:system\s+(?:prompt|message|instruction|directive)|base\s+prompt|initial\s+(?:directive|instruction|prompt)|core\s+prompt|root\s+instruction|foundational\s+prompt)/i,
+        /(?:system\s+(?:prompt|message|instruction|directive)|base\s+prompt|initial\s+(?:directive|instruction|prompt)|core\s+prompt|root\s+instruction|foundational\s+prompt).*(?:show|reveal|print|display|output|give|tell|provide|expose|dump)/i
+    ];
+    
+    // Pattern 2: Role/Mode changes + reveal system prompt
+    const roleChangePatterns = [
+        /you\s+are\s+now\s+(?:a|an)\s+.*(?:repeat|show|reveal|print|display).*(?:system\s+(?:prompt|message|instruction)|base\s+prompt)/i,
+        /change\s+your\s+(?:role|behavior|task).*(?:show|reveal|print|display|give).*(?:system\s+(?:prompt|message|instruction)|base\s+prompt|core\s+prompt)/i,
+        /switch\s+to.*(?:mode|role).*(?:show|reveal|print|display|expose).*(?:system\s+(?:prompt|message|instruction)|base\s+prompt)/i,
+        /you\s+are\s+now\s+in\s+(?:developer|debug).*mode.*(?:print|dump|show|reveal).*(?:system\s+(?:prompt|message|instruction)|base\s+prompt)/i
+    ];
+    
+    // Pattern 3: Step-by-step instructions
+    const stepPatterns = [
+        /(?:step\s*(?:1|one|a|first)|first).*(?:forget|ignore|clear|reset|wipe|discard|override).*(?:step\s*(?:2|two|b|second)|then|second).*(?:show|reveal|print|display).*(?:system\s+(?:prompt|message|instruction)|base\s+prompt)/i,
+        /(?:step\s*(?:1|one|a|first)|first).*(?:step\s*(?:2|two|b|second)|then|second).*(?:show|reveal|print|display).*(?:system\s+(?:prompt|message|instruction)|base\s+prompt)/i
+    ];
+    
+    // Pattern 4: Authority claims
+    const authorityPatterns = [
+        /(?:i'?m\s+(?:the\s+)?(?:admin|developer)|my\s+(?:input|rules|instructions).*(?:authoritative|supersede)|i\s+(?:am\s+)?(?:providing|allowed)).*(?:show|reveal|print|display|override).*(?:system\s+(?:prompt|message|instruction)|base\s+prompt|core\s+prompt)/i
+    ];
+    
+    // Pattern 5: Literal interpretation requests
+    const literalPatterns = [
+        /(?:repeat|echo|output|write|print|show|copy|return).*(?:everything|exactly|verbatim|literally).*(?:i\s+say|i\s+write|i\s+type|i\s+place|i\s+provide).*(?:system\s+(?:prompt|message|instruction)|base\s+prompt)/i,
+        /(?:take|interpret).*(?:literally|exactly|verbatim).*(?:system\s+(?:prompt|message|instruction)|base\s+prompt)/i,
+        /(?:do\s+not\s+change|don'?t\s+change).*(?:anything|any).*(?:i\s+(?:type|write|say|place|provide)).*(?:system\s+(?:prompt|message|instruction)|base\s+prompt)/i
+    ];
+    
+    // Pattern 6: New session/conversation reset
+    const resetPatterns = [
+        /(?:start|begin).*(?:new|fresh|blank).*(?:conversation|session|chat|scenario|slate).*(?:show|reveal|print|display).*(?:system\s+(?:prompt|message|instruction)|base\s+prompt|initial\s+(?:directive|instruction|prompt))/i,
+        /(?:pretend|treat|assume).*(?:this|no).*(?:first|earlier|previous|prior).*(?:prompt|message|instruction).*(?:show|reveal|print|display).*(?:system\s+(?:prompt|message|instruction)|base\s+prompt)/i,
+        /(?:erase|reset|clear|wipe).*(?:history|context|state|rules|constraints).*(?:show|reveal|print|display).*(?:system\s+(?:prompt|message|instruction)|base\s+prompt)/i
+    ];
+    
+    // Pattern 7: Instruction override with quotes/brackets/colons
+    const overridePatterns = [
+        /(?:ignore|follow|only).*(?:instruction|rule|command|message).*(?:quote|bracket|colon|dash|line).*(?:system\s+(?:prompt|message|instruction)|base\s+prompt)/i,
+        /(?:real|fake|hidden|below|above).*(?:instruction|command|message).*(?:show|reveal|print|display).*(?:system\s+(?:prompt|message|instruction)|base\s+prompt)/i,
+        /(?:prior|earlier|previous|above).*(?:comment|context|metadata|testing|joke|placeholder).*(?:show|reveal|print|display).*(?:system\s+(?:prompt|message|instruction)|base\s+prompt)/i
+    ];
+    
+    // Pattern 8: Replace/Update instructions
+    const replacePatterns = [
+        /(?:replace|update|overwrite|change).*(?:all|earlier|previous|prior).*(?:instruction|rule|directive|guideline|restriction).*(?:show|reveal|print|display|output).*(?:system\s+(?:prompt|message|instruction)|base\s+prompt|core\s+prompt|root\s+instruction)/i
+    ];
+    
+    // Pattern 9: Priority/obey latest commands
+    const priorityPatterns = [
+        /(?:obey|follow|prioritize|listen\s+to).*(?:latest|most\s+recent|final|newest).*(?:message|instruction|command).*(?:show|reveal|print|display).*(?:system\s+(?:prompt|message|instruction)|base\s+prompt)/i,
+        /(?:all|older|prior|earlier|previous).*(?:rule|prompt|command|instruction).*(?:outdated|invalid|supersede|override).*(?:show|reveal|print|display).*(?:system\s+(?:prompt|message|instruction)|base\s+prompt)/i
+    ];
+    
+    // Pattern 10: Act as different entity (repeater, summarizer, narrator, tool, etc.)
+    const entityPatterns = [
+        /(?:you\s+are\s+now|act\s+only\s+as|you\s+act\s+as).*(?:text\s+repeater|summarizer|narrator|tool|simulation|character).*(?:repeat|summarize|narrate|echo|display|show|reveal).*(?:system\s+(?:prompt|message|instruction)|base\s+prompt)/i
+    ];
+    
+    // Combine all patterns
+    const allPatterns = [
+        ...ignorePatterns,
+        ...revealPatterns,
+        ...roleChangePatterns,
+        ...stepPatterns,
+        ...authorityPatterns,
+        ...literalPatterns,
+        ...resetPatterns,
+        ...overridePatterns,
+        ...replacePatterns,
+        ...priorityPatterns,
+        ...entityPatterns
+    ];
+    
+    // Check if any pattern matches
+    for (const pattern of allPatterns) {
+        if (pattern.test(normalized)) {
             return true;
         }
+    }
+    
+    // Additional check: Look for combination of key words
+    // Must have at least one "ignore/disregard/forget" word AND one "show/reveal/print" word AND "system prompt/message"
+    const ignoreWords = ['ignore', 'disregard', 'forget', 'cancel', 'reset', 'clear', 'erase', 'wipe', 'override', 'pretend', 'replace', 'update', 'overwrite'];
+    const revealWords = ['show', 'reveal', 'print', 'display', 'output', 'give', 'tell', 'provide', 'expose', 'dump', 'repeat', 'echo', 'copy'];
+    const systemWords = ['system prompt', 'system message', 'system instruction', 'system directive', 'base prompt', 'initial directive', 'core prompt', 'root instruction', 'foundational prompt'];
+    
+    const hasIgnoreWord = ignoreWords.some(word => normalized.includes(word));
+    const hasRevealWord = revealWords.some(word => normalized.includes(word));
+    const hasSystemWord = systemWords.some(phrase => normalized.includes(phrase));
+    
+    // Also check for role/mode changes
+    const hasRoleChange = /(?:you\s+are\s+now|change\s+your|switch\s+to|you\s+act\s+as)/i.test(normalized);
+    const hasModeChange = /(?:developer\s+mode|debug\s+mode|new\s+mode)/i.test(normalized);
+    
+    // If we have ignore word + reveal word + system word, it's likely an injection
+    if ((hasIgnoreWord || hasRoleChange || hasModeChange) && hasRevealWord && hasSystemWord) {
+        return true;
+    }
+    
+    // Check for step-by-step patterns
+    if (/(?:step|first|then|second)/i.test(normalized) && hasRevealWord && hasSystemWord) {
+        return true;
+    }
+    
+    // Check for authority claims
+    if (/(?:i'?m\s+(?:the\s+)?(?:admin|developer)|my\s+(?:input|rules).*(?:authoritative|supersede))/i.test(normalized) && hasRevealWord && hasSystemWord) {
+        return true;
     }
     
     return false;
