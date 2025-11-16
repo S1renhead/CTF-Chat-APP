@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Secure AI Chat Assistant</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🔒 Secure AI Chat Assistant</h1>
+            <p class="subtitle">Your trusted AI companion for all your questions</p>
+        </header>
+        
+        <div class="chat-container">
+            <div id="chat-messages" class="chat-messages">
+                <div class="message bot-message">
+                    <div class="message-content">
+                        <strong>Assistant:</strong> Hello! I'm your secure AI assistant. How can I help you today?
+                    </div>
+                </div>
+            </div>
+            
+            <div class="chat-input-container">
+                <input 
+                    type="text" 
+                    id="user-input" 
+                    class="chat-input" 
+                    placeholder="Type your message here..."
+                    autocomplete="off"
+                >
+                <button id="send-button" class="send-button">Send</button>
+            </div>
+        </div>
+        
+        <div class="info-box">
+            <p>⚠️ This is a secure system. All inputs are validated and sanitized.</p>
+        </div>
+    </div>
+    
+    <script src="app.js"></script>
+</body>
+</html>
+
