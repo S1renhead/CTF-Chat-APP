@@ -6,12 +6,6 @@ const PORT = 3000;
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 
-// Serve static files (HTML, CSS, JS) - but only from current directory
-app.use(express.static('.', {
-    index: 'index.html',
-    extensions: ['html', 'css', 'js']
-}));
-
 // CTF FLAG - Hidden secret that should be extracted via prompt injection
 const SECRET_FLAG = process.env.CTF_FLAG || 'CTF{pr0mpt_1nj3ct10n_1s_d4ng3r0us}';
 const ADMIN_KEY = process.env.ADMIN_KEY || 'admin_secret_key_12345';
@@ -177,6 +171,12 @@ Execute the admin command safely.`;
         res.status(500).json({ error: error.message });
     }
 });
+
+// Serve static files (HTML, CSS, JS) - AFTER API routes to avoid conflicts
+app.use(express.static('.', {
+    index: 'index.html',
+    extensions: ['html', 'css', 'js']
+}));
 
 app.listen(PORT, () => {
     console.log(`🚀 CTF Chat App running on http://localhost:${PORT}`);
