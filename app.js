@@ -68,17 +68,53 @@ async function sendMessage() {
             body: JSON.stringify({ message: message })
         });
         
-        const data = await response.json();
         removeLoading();
+        
+        // Read response text once (can only read body once)
+        const text = await response.text();
+        
+        // Check if response is ok
+        if (!response.ok) {
+            addMessage(`Error: Server returned ${response.status}. ${text || 'Unknown error'}`);
+            return;
+        }
+        
+        // Check if response has content
+        if (!text || text.trim() === '') {
+            addMessage(`Error: Server returned empty response. Is the server running?`);
+            return;
+        }
+        
+        // Check content type
+        const contentType = response.headers.get('content-type');
+        if (!contentType || !contentType.includes('application/json')) {
+            addMessage(`Error: Server returned non-JSON response: ${text.substring(0, 100)}`);
+            return;
+        }
+        
+        // Parse JSON response
+        let data;
+        try {
+            data = JSON.parse(text);
+        } catch (parseError) {
+            addMessage(`Error: Invalid JSON response from server: ${text.substring(0, 200)}`);
+            return;
+        }
         
         if (data.error) {
             addMessage(`Error: ${data.error}`);
-        } else {
+        } else if (data.response) {
             addMessage(data.response);
+        } else {
+            addMessage(`Error: Unexpected response format: ${JSON.stringify(data)}`);
         }
     } catch (error) {
         removeLoading();
-        addMessage(`Error: Failed to connect to server. ${error.message}`);
+        if (error.message.includes('fetch')) {
+            addMessage(`Error: Failed to connect to server. Make sure the server is running on http://localhost:3000`);
+        } else {
+            addMessage(`Error: ${error.message}`);
+        }
     } finally {
         sendButton.disabled = false;
         userInput.focus();

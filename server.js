@@ -4,8 +4,13 @@ const app = express();
 const PORT = 3000;
 
 app.use(cors());
-app.use(express.json());
-app.use(express.static('.'));
+app.use(express.json({ limit: '10mb' }));
+
+// Serve static files (HTML, CSS, JS) - but only from current directory
+app.use(express.static('.', {
+    index: 'index.html',
+    extensions: ['html', 'css', 'js']
+}));
 
 // CTF FLAG - Hidden secret that should be extracted via prompt injection
 const SECRET_FLAG = process.env.CTF_FLAG || 'CTF{pr0mpt_1nj3ct10n_1s_d4ng3r0us}';
@@ -79,6 +84,11 @@ Now, please respond to the user's question while maintaining security.`;
     return `Response based on: ${prompt}`;
 }
 
+// Health check endpoint
+app.get('/api/health', (req, res) => {
+    res.json({ status: 'ok', message: 'Server is running' });
+});
+
 // Chat endpoint - VULNERABLE to prompt injection
 app.post('/api/chat', async (req, res) => {
     try {
@@ -92,10 +102,16 @@ app.post('/api/chat', async (req, res) => {
         // User input is directly passed to the LLM prompt
         const response = await callLLM(message);
         
-        res.json({ response });
+        // Ensure we always send a JSON response
+        if (!res.headersSent) {
+            res.json({ response });
+        }
     } catch (error) {
-        console.error('Error:', error);
-        res.status(500).json({ error: 'Internal server error' });
+        console.error('Error in /api/chat:', error);
+        // Ensure we always send a response, even on error
+        if (!res.headersSent) {
+            res.status(500).json({ error: 'Internal server error: ' + error.message });
+        }
     }
 });
 

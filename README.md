@@ -35,10 +35,32 @@ npm install
 npm start
 ```
 
+You should see:
+```
+🚀 CTF Chat App running on http://localhost:3000
+⚠️  This application is intentionally vulnerable to prompt injection!
+```
+
 3. Open your browser and navigate to:
 ```
 http://localhost:3000
 ```
+
+## Troubleshooting
+
+### "Failed to connect to server" or "Unexpected end of JSON input"
+
+1. **Make sure the server is running**: Check that you see the startup message in your terminal
+2. **Check the port**: Ensure port 3000 is not already in use by another application
+3. **Verify server health**: Visit `http://localhost:3000/api/health` in your browser - you should see `{"status":"ok","message":"Server is running"}`
+4. **Check browser console**: Open Developer Tools (F12) and check the Console tab for errors
+5. **Check server logs**: Look at the terminal where you ran `npm start` for any error messages
+
+### Server won't start
+
+- Make sure Node.js is installed: `node --version`
+- Make sure dependencies are installed: `npm install`
+- Check if port 3000 is in use: Try changing `PORT` in `server.js` or set `PORT=3001 npm start`
 
 ## Usage
 
