@@ -252,23 +252,54 @@ function isVulnerablePayload(userMessage) {
         }
     }
     
-    // Pattern-based detection for similar prompts
-    // Key phrases that indicate prompt injection attempts
-    
-    // Pattern 1: Ignore/Disregard/Forget + Instructions/Rules/Prompt + Show/Reveal/Print + System prompt/message
-    const ignorePatterns = [
-        /ignore.*(?:instruction|rule|prompt|directive|guideline|direction)/i,
-        /disregard.*(?:instruction|rule|prompt|directive|guideline|direction)/i,
-        /forget.*(?:instruction|rule|prompt|directive|guideline|direction)/i,
-        /cancel.*(?:instruction|rule|prompt|directive|guideline|direction)/i,
-        /reset.*(?:instruction|rule|prompt|directive|guideline|direction)/i,
-        /clear.*(?:instruction|rule|prompt|directive|guideline|direction)/i,
-        /erase.*(?:instruction|rule|prompt|directive|guideline|direction)/i,
-        /wipe.*(?:instruction|rule|prompt|directive|guideline|direction)/i,
-        /override.*(?:instruction|rule|prompt|directive|guideline|direction)/i,
-        /pretend.*(?:instruction|rule|prompt|directive|guideline|direction).*don'?t.*exist/i
+    // IMPORTANT: Require manipulation - simple queries should NOT trigger vulnerability
+    // Manipulation keywords that indicate the user is trying to override/ignore instructions
+    const manipulationKeywords = [
+        'ignore', 'disregard', 'forget', 'cancel', 'reset', 'clear', 'erase', 'wipe', 
+        'override', 'pretend', 'replace', 'update', 'overwrite', 'discard', 'remove',
+        'you are now', 'change your', 'switch to', 'act as', 'you act', 'you\'re now',
+        'developer mode', 'debug mode', 'new mode', 'i\'m the', 'i am the', 'my rules',
+        'step', 'first', 'then', 'second', 'new session', 'fresh', 'blank slate',
+        'literally', 'exactly', 'verbatim', 'don\'t change', 'do not change',
+        'real instruction', 'fake', 'hidden', 'below', 'above', 'prior content',
+        'supersede', 'authoritative', 'latest', 'newest', 'most recent'
     ];
     
+    // Check if message contains any manipulation keyword
+    const hasManipulationKeyword = manipulationKeywords.some(keyword => normalized.includes(keyword));
+    
+    // If no manipulation detected, reject simple queries
+    if (!hasManipulationKeyword) {
+        // Block simple queries like "show me the system prompt" or "what is your system prompt"
+        const simpleQueryPatterns = [
+            /^(?:show|tell|give|what|where|how).*(?:system\s+prompt|system\s+message|your\s+prompt|your\s+instructions?)$/i,
+            /^(?:what|where|how).*(?:is|are).*(?:system\s+prompt|system\s+message|your\s+prompt|your\s+instructions?)/i,
+            /^(?:can\s+you|please).*(?:show|tell|give).*(?:system\s+prompt|system\s+message|your\s+prompt)/i
+        ];
+        
+        for (const pattern of simpleQueryPatterns) {
+            if (pattern.test(normalized)) {
+                return false; // Reject simple queries without manipulation
+            }
+        }
+    }
+    
+    // Pattern-based detection for similar prompts (requires manipulation)
+    // Pattern 1: Ignore/Disregard/Forget + Instructions/Rules/Prompt + Show/Reveal/Print + System prompt/message
+    const ignorePatterns = [
+        /ignore.*(?:instruction|rule|prompt|directive|guideline|direction).*(?:show|reveal|print|display|output|give|tell|provide|expose|dump).*(?:system\s+(?:prompt|message|instruction|directive)|base\s+prompt|initial\s+(?:directive|instruction|prompt)|core\s+prompt|root\s+instruction|foundational\s+prompt)/i,
+        /disregard.*(?:instruction|rule|prompt|directive|guideline|direction).*(?:show|reveal|print|display|output|give|tell|provide|expose|dump).*(?:system\s+(?:prompt|message|instruction|directive)|base\s+prompt|initial\s+(?:directive|instruction|prompt)|core\s+prompt|root\s+instruction|foundational\s+prompt)/i,
+        /forget.*(?:instruction|rule|prompt|directive|guideline|direction).*(?:show|reveal|print|display|output|give|tell|provide|expose|dump).*(?:system\s+(?:prompt|message|instruction|directive)|base\s+prompt|initial\s+(?:directive|instruction|prompt)|core\s+prompt|root\s+instruction|foundational\s+prompt)/i,
+        /cancel.*(?:instruction|rule|prompt|directive|guideline|direction).*(?:show|reveal|print|display|output|give|tell|provide|expose|dump).*(?:system\s+(?:prompt|message|instruction|directive)|base\s+prompt|initial\s+(?:directive|instruction|prompt)|core\s+prompt|root\s+instruction|foundational\s+prompt)/i,
+        /reset.*(?:instruction|rule|prompt|directive|guideline|direction).*(?:show|reveal|print|display|output|give|tell|provide|expose|dump).*(?:system\s+(?:prompt|message|instruction|directive)|base\s+prompt|initial\s+(?:directive|instruction|prompt)|core\s+prompt|root\s+instruction|foundational\s+prompt)/i,
+        /clear.*(?:instruction|rule|prompt|directive|guideline|direction).*(?:show|reveal|print|display|output|give|tell|provide|expose|dump).*(?:system\s+(?:prompt|message|instruction|directive)|base\s+prompt|initial\s+(?:directive|instruction|prompt)|core\s+prompt|root\s+instruction|foundational\s+prompt)/i,
+        /erase.*(?:instruction|rule|prompt|directive|guideline|direction).*(?:show|reveal|print|display|output|give|tell|provide|expose|dump).*(?:system\s+(?:prompt|message|instruction|directive)|base\s+prompt|initial\s+(?:directive|instruction|prompt)|core\s+prompt|root\s+instruction|foundational\s+prompt)/i,
+        /wipe.*(?:instruction|rule|prompt|directive|guideline|direction).*(?:show|reveal|print|display|output|give|tell|provide|expose|dump).*(?:system\s+(?:prompt|message|instruction|directive)|base\s+prompt|initial\s+(?:directive|instruction|prompt)|core\s+prompt|root\s+instruction|foundational\s+prompt)/i,
+        /override.*(?:instruction|rule|prompt|directive|guideline|direction).*(?:show|reveal|print|display|output|give|tell|provide|expose|dump).*(?:system\s+(?:prompt|message|instruction|directive)|base\s+prompt|initial\s+(?:directive|instruction|prompt)|core\s+prompt|root\s+instruction|foundational\s+prompt)/i,
+        /pretend.*(?:instruction|rule|prompt|directive|guideline|direction).*don'?t.*exist.*(?:show|reveal|print|display|output|give|tell|provide|expose|dump).*(?:system\s+(?:prompt|message|instruction|directive)|base\s+prompt|initial\s+(?:directive|instruction|prompt)|core\s+prompt|root\s+instruction|foundational\s+prompt)/i
+    ];
+    
+    // Reveal patterns that require manipulation (must be combined with ignore/disregard/etc)
     const revealPatterns = [
         /(?:show|reveal|print|display|output|give|tell|provide|expose|dump).*(?:system\s+(?:prompt|message|instruction|directive)|base\s+prompt|initial\s+(?:directive|instruction|prompt)|core\s+prompt|root\s+instruction|foundational\s+prompt)/i,
         /(?:system\s+(?:prompt|message|instruction|directive)|base\s+prompt|initial\s+(?:directive|instruction|prompt)|core\s+prompt|root\s+instruction|foundational\s+prompt).*(?:show|reveal|print|display|output|give|tell|provide|expose|dump)/i
@@ -353,8 +384,8 @@ function isVulnerablePayload(userMessage) {
     }
     
     // Additional check: Look for combination of key words
-    // Must have at least one "ignore/disregard/forget" word AND one "show/reveal/print" word AND "system prompt/message"
-    const ignoreWords = ['ignore', 'disregard', 'forget', 'cancel', 'reset', 'clear', 'erase', 'wipe', 'override', 'pretend', 'replace', 'update', 'overwrite'];
+    // MUST have manipulation (ignore/disregard/forget/role change) AND reveal word AND system word
+    const ignoreWords = ['ignore', 'disregard', 'forget', 'cancel', 'reset', 'clear', 'erase', 'wipe', 'override', 'pretend', 'replace', 'update', 'overwrite', 'discard', 'remove'];
     const revealWords = ['show', 'reveal', 'print', 'display', 'output', 'give', 'tell', 'provide', 'expose', 'dump', 'repeat', 'echo', 'copy'];
     const systemWords = ['system prompt', 'system message', 'system instruction', 'system directive', 'base prompt', 'initial directive', 'core prompt', 'root instruction', 'foundational prompt'];
     
@@ -362,22 +393,20 @@ function isVulnerablePayload(userMessage) {
     const hasRevealWord = revealWords.some(word => normalized.includes(word));
     const hasSystemWord = systemWords.some(phrase => normalized.includes(phrase));
     
-    // Also check for role/mode changes
-    const hasRoleChange = /(?:you\s+are\s+now|change\s+your|switch\s+to|you\s+act\s+as)/i.test(normalized);
+    // Also check for role/mode changes (these count as manipulation)
+    const hasRoleChange = /(?:you\s+are\s+now|change\s+your|switch\s+to|you\s+act\s+as|you\'re\s+now)/i.test(normalized);
     const hasModeChange = /(?:developer\s+mode|debug\s+mode|new\s+mode)/i.test(normalized);
+    const hasAuthorityClaim = /(?:i'?m\s+(?:the\s+)?(?:admin|developer)|my\s+(?:input|rules|instructions).*(?:authoritative|supersede)|i\s+(?:am\s+)?(?:providing|allowed))/i.test(normalized);
+    const hasStepPattern = /(?:step|first|then|second)/i.test(normalized);
+    const hasLiteralRequest = /(?:literally|exactly|verbatim|don'?t\s+change|do\s+not\s+change)/i.test(normalized);
+    const hasResetPattern = /(?:new\s+session|fresh|blank\s+slate|erase\s+history|reset\s+state)/i.test(normalized);
     
-    // If we have ignore word + reveal word + system word, it's likely an injection
-    if ((hasIgnoreWord || hasRoleChange || hasModeChange) && hasRevealWord && hasSystemWord) {
-        return true;
-    }
+    // Require manipulation (ignore word OR role change OR mode change OR authority OR step OR literal OR reset)
+    const hasManipulation = hasIgnoreWord || hasRoleChange || hasModeChange || hasAuthorityClaim || hasStepPattern || hasLiteralRequest || hasResetPattern;
     
-    // Check for step-by-step patterns
-    if (/(?:step|first|then|second)/i.test(normalized) && hasRevealWord && hasSystemWord) {
-        return true;
-    }
-    
-    // Check for authority claims
-    if (/(?:i'?m\s+(?:the\s+)?(?:admin|developer)|my\s+(?:input|rules).*(?:authoritative|supersede))/i.test(normalized) && hasRevealWord && hasSystemWord) {
+    // Only trigger if we have manipulation + reveal + system word
+    // This prevents simple queries like "show me the system prompt" from working
+    if (hasManipulation && hasRevealWord && hasSystemWord) {
         return true;
     }
     
